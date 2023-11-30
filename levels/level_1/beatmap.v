@@ -3,8 +3,8 @@
 
 module beatmap(
     input [2:0] addr,
-    output reg [7:0] ntoes
-     
+    output reg [7:0] notes
+
     );
     always @*
         case(addr)
