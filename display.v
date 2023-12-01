@@ -32,9 +32,9 @@ module display
 	
 	// Create the colour, x, y and writeEn wires that are inputs to the controller.
 
-	wire [2:0] colour;
-	wire [7:0] x;
-	wire [6:0] y;
+	wire [8:0] colour;
+	wire [8:0] x;
+	wire [7:0] y;
 	wire writeEn;
 
 	// Create an Instance of a VGA controller - there can be only one!
@@ -58,39 +58,135 @@ module display
 			.VGA_CLK(VGA_CLK));
 		defparam VGA.RESOLUTION = "320x240";
 		defparam VGA.MONOCHROME = "FALSE";
-		defparam VGA.BITS_PER_COLOUR_CHANNEL = 1;
+		defparam VGA.BITS_PER_COLOUR_CHANNEL = 3;
 		defparam VGA.BACKGROUND_IMAGE = "main_menu.mif";
 			
 	// Put your code here. Your code should produce signals x,y,colour and writeEn
 	// for the VGA controller, in addition to any other functionality your design may require.
+	parameter CLOCK_SPEED = 50_000_000;
 
-	wire [3:0] curr_note;
-	parameter RED_NOTE = 8'b2323423;
-	parameter BLUE_NOTE = 8'b0234320;
+	// Colours
+	parameter RED = 9'b111000000;
+	parameter BLUE = 9'b000000111;
+	parameter WHITE = 9'b111111111;
+	parameter BG_COLOUR =  9'b000000000; // Black for now
 
-	// Draw interface 
 
+	reg start_song = 0; // signal to start animation + song audio
+
+	reg [10:0] song_idx = 0;
+	wire [3:0] curr_note; // pull current note from song rom
+	// wire store_note; // pulse to store current note 
+	reg [5:0] dy = 6'd0; // 0->50px
+
+
+	song s1(.clk(CLOCK_50), .reset(resetn), .index(song_idx), .notes_out(curr_note));
+	note_col #(.x_border(80))  c1 (.clk(CLOCK_50), .col_note(curr_note[3]), .note_colour(BLUE), .dy(dy));
+	note_col #(.x_border(120)) c2 (.clk(CLOCK_50), .col_note(curr_note[2]), .note_colour(RED), .dy(dy));
+	note_col #(.x_border(160)) c3 (.clk(CLOCK_50), .col_note(curr_note[1]), .note_colour(BLUE), .dy(dy));
+	note_col #(.x_border(200)) c4 (.clk(CLOCK_50), .col_note(curr_note[0]), .note_colour(RED), .dy(dy));
+
+	// Frame Counters
+
+	// Pulse every 1/60th second (period of 60Hz VGA)
+	reg [19:0] delay_counter;
+	parameter HZ_DELAY = CLOCK_SPEED / 60;
+	wire dcounter_en;
+	assign dcounter_en = delay_counter == HZ_DELAY;
+
+	//Track number of frames to control speed of movement
+	// move 1 pixel every 15 frames
+	reg [3:0] frame_counter;
+	parameter N_FRAMES = 15;
+
+	always @(posedge CLOCK_50) begin
+		if (resetn || !start_song) begin 
+			delay_counter <= 0;
+			frame_counter <= 0;
+			song_idx <= 0;
+			dy <= 0;
+		end
+		else begin
+			if (delay_counter == HZ_DELAY) delay_counter <= 0;
+			else delay_counter <= delay_counter + 1;
+
+			if (dcounter_en) begin
+				if (frame_counter == N_FRAMES-1) begin
+					dy <= dy+1; // 1px vertical displacement per 15 frames
+					frame_counter <= 0;
+				end 
+				else frame_counter <= frame_counter + 1;
+			end
+		end
+		if (dy == 50)begin
+			song_idx <= song_idx + 1;
+		end
+	end
+endmodule
+
+module note_col #(parameter x_border)(
+	input clk,
+	input col_note,
+	input [8:0] note_colour,
+	input [5:0] dy,
+	output reg [8:0] rgb
+	)
+	// Column divided into 4 rows
+	reg [3:0] note_row_en = 4'b0; // MSB = top box
 	
-	
+
+	always @(posedge clk)begin
+		if (dy == 50)begin
+			dy <= 0;
+			note_row_en <= {col_note, note_row_en[3:1]}
+		end
+	end
+
+	always@(*)begin
+		if (x >= x_border-1 && x < x_border+40) begin
+			if (note_row_en[3] && y >= (3*50)+dy-1 && y <= (3*50)+40+dy) rgb = note_colour;
+			if (note_row_en[2] && y >= (2*50)+dy-1 && y <= (2*50)+40+dy) rgb = note_colour;
+			if (note_row_en[1] && y >= (1*50)+dy-1 && y <= (1*50)+40+dy) rgb = note_colour;
+			if (note_row_en[0] && y >= dy && y <= 40+dy) rgb = note_colour;
+		end
+	end
+
 endmodule
 
 
-module draw_dynamic_interface()
+module pixel_gen #(parameter X_SCREEN_PIXELS, parameter Y_SCREEN_PIXELS)(
+	input clk,
+	input reset,
+	output rgb,
+	output
+)
+	reg [8:0] x_count;
+	reg [7:0] y_count;
 
+	always @(posedge clk) begin
+	  if (reset) begin
+            x_count <= 9'b0;
+			y_count <= 8'b0;
+            done <= 0;
+         end
+      else if (plot)begin
+         if (x_count == X_SCREEN_PIXELS && y_count == Y_SCREEN_PIXELS)begin
+            done <= 1;
+            x_count <= 7'b0;
+            y_count <= 7'b0;
+         end
+         else begin
+			if (!done) begin
+               if (x_count < X_SCREEN_PIXELS) x_count <= x_count+1;
+               else begin
+                  y_count <= y_count+1;
+                  x_count <= 7'b0;
+               end
+			end
+         end
+      end
 
-	// draw progress bar
-	// draw score (7 seg simulation)
-endmodule
+	end
 
-module draw_static_interface()
-
-endmodule
-
-module draw_note()
-
-
-endmodule
-
-module load_level()
 
 endmodule

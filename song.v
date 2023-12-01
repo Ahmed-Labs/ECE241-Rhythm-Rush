@@ -4,29 +4,32 @@
 module song (clk, reset, start, notes_out)
     input clk;
     input reset;
-    input start;
+    input index;
     output reg [3:0] notes_out;
 
-    parameter clock_freq = 50000000;
+    // parameter clock_freq = 50000000;
     reg [3:0] notes [0:999];
-    reg [25:0] counter; // to delay sending out notes, 1 per second
+    // reg [25:0] counter; // to delay sending out notes, 1 per second
 
-    reg [9:0] curr_note;
-    initial curr_note = 0;
+    reg [9:0] curr_note
 
     always @(posedge clk) begin
-        notes_out <= notes[curr_note];
-        if (start)begin
-            if (reset) counter <= 0;
-            else if (counter == clock_freq-1) begin
-                counter <= 0;
-                curr_note <= curr_note + 1;
-            end
-            else begin
-                counter <= counter +1;
-            end
-        end
+	    notes_out <= notes[index];
     end
+
+    // always @(posedge clk) begin
+    //     notes_out <= notes[curr_note];
+    //     if (start)begin
+    //         if (reset) counter <= 0;
+    //         else if (counter == clock_freq-1) begin
+    //             counter <= 0;
+    //             curr_note <= curr_note + 1;
+    //         end
+    //         else begin
+    //             counter <= counter +1;
+    //         end
+    //     end
+    // end
     initial begin
         	notes[0] =  4'b0000;
             notes[1] =  4'b0000;
