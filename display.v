@@ -93,6 +93,7 @@ module display
 	parameter HZ_DELAY = CLOCK_SPEED / 60;
 	wire dcounter_en;
 	assign dcounter_en = delay_counter == HZ_DELAY;
+	assign writeEn = dcounter_en; 
 
 	//Track number of frames to control speed of movement
 	// move 1 pixel every 15 frames
@@ -122,6 +123,7 @@ module display
 			song_idx <= song_idx + 1;
 		end
 	end
+
 endmodule
 
 module note_col #(parameter x_border)(
@@ -133,7 +135,7 @@ module note_col #(parameter x_border)(
 	)
 	// Column divided into 4 rows
 	reg [3:0] note_row_en = 4'b0; // MSB = top box
-	
+	parameter BG_COLOUR =  9'b000000000;
 
 	always @(posedge clk)begin
 		if (dy == 50)begin
@@ -144,6 +146,7 @@ module note_col #(parameter x_border)(
 
 	always@(*)begin
 		if (x >= x_border-1 && x < x_border+40) begin
+			rgb = BG_COLOUR;
 			if (note_row_en[3] && y >= (3*50)+dy-1 && y <= (3*50)+40+dy) rgb = note_colour;
 			if (note_row_en[2] && y >= (2*50)+dy-1 && y <= (2*50)+40+dy) rgb = note_colour;
 			if (note_row_en[1] && y >= (1*50)+dy-1 && y <= (1*50)+40+dy) rgb = note_colour;
@@ -153,15 +156,66 @@ module note_col #(parameter x_border)(
 
 endmodule
 
+module pixel_gen_control(
+	input clk,
+	input reset,
+	input done
+)
+    reg [2:0] current_state, next_state;
+
+    localparam  IDLE        	= 3'd0,
+				IDLE_WAIT    	= 3'd1,
+                PIXEL_GEN       = 3'd2,
+				PLOT_GAME_OVER  = 3'd3;
+	
+	always@(*)
+	begin: 
+	 case(current_state)
+	 	IDLE: next_state = dcounter_en ? IDLE_WAIT : IDLE;
+		IDLE_WAIT: next_state = dcounter_en ? IDLE_WAIT : PIXEL_GEN;
+		PIXEL_GEN: next_state = done ? IDLE : PIXEL_GEN;
+		PLOT_GAME_OVER: next_state = 
+		default: next_state = IDLE;
+	 endcase
+	end
+
+	always @(*)
+	begin:
+		plot = 1'b0;
+
+		case(current_state)
+			PIXEL_GEN: begin
+				plot = 1'b1;
+			end
+			PLOT_GAME_OVER: begin
+				plot = 1'b1;
+				gameover_rgb_en = 1'b1;
+			end
+		endcase	
+	end
+	
+	always@(posedge clk)
+    begin: state_FFs
+        if(!Reset)
+            current_state <= IDLE;
+        else
+            current_state <= next_state;
+    end
+endmodule
 
 module pixel_gen #(parameter X_SCREEN_PIXELS, parameter Y_SCREEN_PIXELS)(
 	input clk,
 	input reset,
-	output rgb,
-	output
+	output done,
+	output [8:0] rgb
 )
 	reg [8:0] x_count;
 	reg [7:0] y_count;
+	// Colours
+	parameter RED = 9'b111000000;
+	parameter BLUE = 9'b000000111;
+	parameter WHITE = 9'b111111111;
+	parameter BG_COLOUR =  9'b000000000; // Black for now
 
 	always @(posedge clk) begin
 	  if (reset) begin
@@ -172,21 +226,24 @@ module pixel_gen #(parameter X_SCREEN_PIXELS, parameter Y_SCREEN_PIXELS)(
       else if (plot)begin
          if (x_count == X_SCREEN_PIXELS && y_count == Y_SCREEN_PIXELS)begin
             done <= 1;
-            x_count <= 7'b0;
-            y_count <= 7'b0;
+            x_count <= 9'b0;
+            y_count <= 8'b0;
          end
          else begin
 			if (!done) begin
                if (x_count < X_SCREEN_PIXELS) x_count <= x_count+1;
                else begin
                   y_count <= y_count+1;
-                  x_count <= 7'b0;
+                  x_count <= 9'b0;
                end
 			end
          end
+
       end
 
 	end
 
+	Background BG (.address(addr), .clock);
+	Gameover GO (.address(addr), .clock);
 
 endmodule

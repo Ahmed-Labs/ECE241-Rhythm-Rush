@@ -207,6 +207,37 @@ module vga_adapter(
 				.clocken0 (vcc), // write enable clock
 				.clocken1 (vcc), // read enable clock				
 				.address_a (user_to_video_memory_addr),
+				// 
+				.address_b (controller_to_video_memory_addr), // REPLACEEEEE!!!!!!!!!
+				// 
+				.data_a (colour), // data in
+				.q_b (to_ctrl_colour)	// data out
+				);
+	defparam
+		VideoMemory.WIDTH_A = ((MONOCHROME == "FALSE") ? (BITS_PER_COLOUR_CHANNEL*3) : 1),
+		VideoMemory.WIDTH_B = ((MONOCHROME == "FALSE") ? (BITS_PER_COLOUR_CHANNEL*3) : 1),
+		VideoMemory.INTENDED_DEVICE_FAMILY = "Cyclone II",
+		VideoMemory.OPERATION_MODE = "DUAL_PORT",
+		VideoMemory.WIDTHAD_A = ((RESOLUTION == "320x240") ? (17) : (15)),
+		VideoMemory.NUMWORDS_A = ((RESOLUTION == "320x240") ? (76800) : (19200)),
+		VideoMemory.WIDTHAD_B = ((RESOLUTION == "320x240") ? (17) : (15)),
+		VideoMemory.NUMWORDS_B = ((RESOLUTION == "320x240") ? (76800) : (19200)),
+		VideoMemory.OUTDATA_REG_B = "CLOCK1",
+		VideoMemory.ADDRESS_REG_B = "CLOCK1",
+		VideoMemory.CLOCK_ENABLE_INPUT_A = "BYPASS",
+		VideoMemory.CLOCK_ENABLE_INPUT_B = "BYPASS",
+		VideoMemory.CLOCK_ENABLE_OUTPUT_B = "BYPASS",
+		VideoMemory.POWER_UP_UNINITIALIZED = "FALSE",
+		VideoMemory.INIT_FILE = BACKGROUND_IMAGE;
+
+	altsyncram	VideoMemory (
+				.wren_a (1'b0),
+				.wren_b (gnd),
+				.clock0 (clock), // write clock
+				.clock1 (clock_25), // read clock
+				.clocken0 (vcc), // write enable clock
+				.clocken1 (vcc), // read enable clock				
+				.address_a (user_to_video_memory_addr),
 				.address_b (controller_to_video_memory_addr),
 				.data_a (colour), // data in
 				.q_b (to_ctrl_colour)	// data out
