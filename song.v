@@ -7,9 +7,11 @@ module song (clk, reset, start, notes_out)
     input index;
     output reg [3:0] notes_out;
 
+    // The following could be used to adjust speed/difficulty:
     // parameter clock_freq = 50000000;
-    reg [3:0] notes [0:999];
     // reg [25:0] counter; // to delay sending out notes, 1 per second
+
+    reg [3:0] notes [0:999];
 
     reg [9:0] curr_note
 
