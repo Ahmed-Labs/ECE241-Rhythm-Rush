@@ -18,13 +18,13 @@ module fsm(input Clk, reset, mouseClick, keyPressed, accurate, noMoreLives, fini
         begin
             case (presentState)
                 mainMenu: if (mouseClick) nextState = mainMenu_wait; 
-					 mainMenu_wait: if (!mouseClick) nextState = selectDiff; 
+				mainMenu_wait: if (!mouseClick) nextState = selectDiff; 
 								
-					 selectDiff: if (mouseClick) nextState = selectDiff_wait; 
-					 selectDiff_wait: if (!mouseClick) nextState = loadLevel;
+				selectDiff: if (mouseClick) nextState = selectDiff_wait; 
+				selectDiff_wait: if (!mouseClick) nextState = loadLevel;
 								
-					 loadLevel: if (mouseClick) nextState = loadLevel_wait; 
-					 loadLevel_wait: if (!mouseClick) nextState = idle; 
+				loadLevel: if (mouseClick) nextState = loadLevel_wait; 
+				loadLevel_wait: if (!mouseClick) nextState = idle; 
 					 
                 idle: if (keyPressed & accurate & !noMoreLives & !finishSong) nextState = hit; 
                     else if (keyPressed & !accurate & !noMoreLives & !finishSong) nextState = miss;
@@ -86,4 +86,82 @@ module fsm(input Clk, reset, mouseClick, keyPressed, accurate, noMoreLives, fini
 //                default: z = 0;
 //            endcase
 //        end
+
+    always @(*)
+        begin
+            // set all signals to 0
+            setClick = 1'b0;
+            setKeyPress = 1'b0;
+            setSwitchDiff = 1'b0; //to store the difficulty selected by the switch
+            setScore = 1'b0;
+            setLives = 1'b0;
+            setStreak = 1'b0;
+            changeScore = 1'b0;
+            loseLife = 1'b0;
+            changeStreak = 1'b0;
+            hitNote = 1'b0; //if the note was hit accurately
+            endOfSong = 1'b0;
+
+            case (presentState)
+            
+                mainMenu: begin
+                    setClick = 1'b1;
+                end
+                mainMenu_wait: begin
+                    setClick = 1'b1;
+                end
+
+                selectDiff: begin 
+                    setClick = 1'b1;
+                    setSwitchDiff = 1'b1;
+                end
+                selectDiff_wait: begin
+                    setClick = 1'b1;
+                end
+
+                loadLevel: begin
+                    setClick = 1'b1;
+                    setScore = 1'b1;
+                    setLives = 1'b1;
+                    setStreak = 1'b1;
+                end
+                loadLevel_wait: begin
+                    setClick = 1'b1;
+                end
+
+                //gameplay
+                idle: begin
+                    setKeyPress = 1'b1;
+                    hitNote = 1'b1;
+                    changeScore = 1'b1;
+                    endOfSong = 1'b1;
+                end
+                hit: begin
+                    setKeyPress = 1'b1;
+                    hitNote = 1'b1;
+                    changeStreak = 1'b1;
+                end
+                miss: begin
+                    setKeyPress = 1'b1;
+                    hitNote = 1'b1;
+                    loseLife = 1'b1;
+                end
+
+                //terminating screens
+                win: begin
+                    setClick = 1'b1;
+                end
+                win_wait: begin
+                    setClick = 1'b1;
+                end
+
+                lose: begin
+                    setClick = 1'b1;
+                end
+                lose_wait: begin
+                    setClick = 1'b1;
+                end
+        end
+
+
 endmodule
