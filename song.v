@@ -4,7 +4,7 @@
 module song (clk, reset, start, notes_out)
     input clk;
     input reset;
-    input index;
+    input [5:0] index;
     output reg [3:0] notes_out;
 
     // The following could be used to adjust speed/difficulty:
@@ -34,15 +34,14 @@ module song (clk, reset, start, notes_out)
     // end
     initial begin
         	notes[0] =  4'b0000;
-            notes[1] =  4'b0000;
-            notes[2] =  4'b0000;
+            notes[1] =  4'b0010;
+            notes[2] =  4'b1000;
             notes[3] =  4'b0000;
             notes[4] =  4'b0000;
             notes[5] =  4'b0000;
             notes[6] =  4'b0000;
             notes[7] =  4'b0000;
             notes[8] =  4'b0000;
-            notes[1] =  4'b0000;
             notes[9] =  4'b0000;
             notes[10] = 4'b0000;
             notes[11] = 4'b0000;

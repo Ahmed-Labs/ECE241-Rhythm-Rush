@@ -88,8 +88,7 @@ module vga_adapter(
 			VGA_VS,
 			VGA_BLANK,
 			VGA_SYNC,
-			VGA_CLK,
-			toggle_buffer);
+			VGA_CLK);
  
 	parameter BITS_PER_COLOUR_CHANNEL = 1;
 	/* The number of bits per colour channel used to represent the colour of each pixel. A value
@@ -200,10 +199,12 @@ module vga_adapter(
 	assign writeEn = (plot) & (valid_160x120 | valid_320x240);
 	/* Allow the user to plot a pixel if and only if the (X,Y) coordinates supplied are in a valid range. */
 
-	wire writeEn_A = toggle_buffer ? writeEn: 0;
-	wire writeEn_B = toggle_buffer ? 0 : writeEn;
-	
+	// wire writeEn_A = toggle_buffer ? writeEn: 0;
+	// wire writeEn_B = toggle_buffer ? 0 : writeEn;
+
 	wire final_address = toggle_buffer ? controller_to_video_memory_addr_B: controller_to_video_memory_addr_A;
+
+
 
 	/* Create video memory. */
 	altsyncram	VideoMemory (
@@ -216,7 +217,7 @@ module vga_adapter(
 				.address_a (user_to_video_memory_addr),
 				.address_b (controller_to_video_memory_addr_A),
 				.data_a (colour), // data in
-				.q_b (to_ctrl_colour)	// data out
+				.q_b (to_ctrl_colour1)	// data out
 				);
 	defparam
 		VideoMemory.WIDTH_A = ((MONOCHROME == "FALSE") ? (BITS_PER_COLOUR_CHANNEL*3) : 1),
@@ -235,7 +236,7 @@ module vga_adapter(
 		VideoMemory.POWER_UP_UNINITIALIZED = "FALSE",
 		VideoMemory.INIT_FILE = BACKGROUND_IMAGE;
 
-	altsyncram	VideoMemory (
+	altsyncram	VideoMemoryB (
 				.wren_a (writeEn_B),
 				.wren_b (gnd),
 				.clock0 (clock), // write clock
@@ -245,24 +246,24 @@ module vga_adapter(
 				.address_a (user_to_video_memory_addr),
 				.address_b (controller_to_video_memory_addr_B),
 				.data_a (colour), // data in
-				.q_b (to_ctrl_colour)	// data out
+				.q_b (to_ctrl_colour2)	// data out
 				);
 	defparam
-		VideoMemory.WIDTH_A = ((MONOCHROME == "FALSE") ? (BITS_PER_COLOUR_CHANNEL*3) : 1),
-		VideoMemory.WIDTH_B = ((MONOCHROME == "FALSE") ? (BITS_PER_COLOUR_CHANNEL*3) : 1),
-		VideoMemory.INTENDED_DEVICE_FAMILY = "Cyclone II",
-		VideoMemory.OPERATION_MODE = "DUAL_PORT",
-		VideoMemory.WIDTHAD_A = ((RESOLUTION == "320x240") ? (17) : (15)),
-		VideoMemory.NUMWORDS_A = ((RESOLUTION == "320x240") ? (76800) : (19200)),
-		VideoMemory.WIDTHAD_B = ((RESOLUTION == "320x240") ? (17) : (15)),
-		VideoMemory.NUMWORDS_B = ((RESOLUTION == "320x240") ? (76800) : (19200)),
-		VideoMemory.OUTDATA_REG_B = "CLOCK1",
-		VideoMemory.ADDRESS_REG_B = "CLOCK1",
-		VideoMemory.CLOCK_ENABLE_INPUT_A = "BYPASS",
-		VideoMemory.CLOCK_ENABLE_INPUT_B = "BYPASS",
-		VideoMemory.CLOCK_ENABLE_OUTPUT_B = "BYPASS",
-		VideoMemory.POWER_UP_UNINITIALIZED = "FALSE",
-		VideoMemory.INIT_FILE = BACKGROUND_IMAGE;
+		VideoMemoryB.WIDTH_A = ((MONOCHROME == "FALSE") ? (BITS_PER_COLOUR_CHANNEL*3) : 1),
+		VideoMemoryB.WIDTH_B = ((MONOCHROME == "FALSE") ? (BITS_PER_COLOUR_CHANNEL*3) : 1),
+		VideoMemoryB.INTENDED_DEVICE_FAMILY = "Cyclone II",
+		VideoMemoryB.OPERATION_MODE = "DUAL_PORT",
+		VideoMemoryB.WIDTHAD_A = ((RESOLUTION == "320x240") ? (17) : (15)),
+		VideoMemoryB.NUMWORDS_A = ((RESOLUTION == "320x240") ? (76800) : (19200)),
+		VideoMemoryB.WIDTHAD_B = ((RESOLUTION == "320x240") ? (17) : (15)),
+		VideoMemoryB.NUMWORDS_B = ((RESOLUTION == "320x240") ? (76800) : (19200)),
+		VideoMemoryB.OUTDATA_REG_B = "CLOCK1",
+		VideoMemoryB.ADDRESS_REG_B = "CLOCK1",
+		VideoMemoryB.CLOCK_ENABLE_INPUT_A = "BYPASS",
+		VideoMemoryB.CLOCK_ENABLE_INPUT_B = "BYPASS",
+		VideoMemoryB.CLOCK_ENABLE_OUTPUT_B = "BYPASS",
+		VideoMemoryB.POWER_UP_UNINITIALIZED = "FALSE",
+		VideoMemoryB.INIT_FILE = BACKGROUND_IMAGE;
 		
 	vga_pll mypll(clock, clock_25);
 	/* This module generates a clock with half the frequency of the input clock.
@@ -282,10 +283,11 @@ module vga_adapter(
 	assign VGA_G = g[9:2];
 	assign VGA_B = b[9:2];
 	
+
 	vga_controller controller(
 			.vga_clock(clock_25),
 			.resetn(resetn),
-			.pixel_colour(to_ctrl_colour),
+			.pixel_colour(to_ctrl_colour_A),
 			.memory_address(final_address), 
 			.VGA_R(r),
 			.VGA_G(g),
@@ -302,3 +304,43 @@ module vga_adapter(
 
 endmodule
 	
+
+module buffer_state()
+	reg [2:0] current_state, next_state;
+	localparam  	BUFFER_A_WAIT   = 3'd0,
+					BUFFER_A       	= 3'd1,
+					BUFFER_B_WAIT   = 3'd0,
+					BUFFER_B       	= 3'd1,
+
+	always@(*)
+	begin
+	 case(current_state)
+	 	BUFFER_A_WAIT: next_state = VGA_VS ? BUFFER_A : BUFFER_A_WAIT;
+		BUFFER_A: next_state = VGA_VS ? BUFFER_A : BUFFER_B_WAIT;
+		BUFFER_B_WAIT: next_state = VGA_VS ? BUFFER_B : BUFFER_B_WAIT;
+		BUFFER_B: next_state = VGA_VS ? BUFFER_B : BUFFER_A_WAIT;
+		default: next_state = BUFFER_A;
+	 endcase
+	end
+
+	always @(*)
+	begin
+		case (current_state)
+			BUFFER_A:begin
+				
+			end
+			BUFFER_B: begin
+
+			end
+		endcase
+
+	end
+
+	always@(posedge clk)
+    begin
+        if(reset)
+            current_state <= BUFFER_A;
+        else
+            current_state <= next_state;
+    end
+endmodule

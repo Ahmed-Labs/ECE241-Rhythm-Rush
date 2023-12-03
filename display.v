@@ -18,6 +18,7 @@ module display
 	input			CLOCK_50;				//	50 MHz
 	input	[3:0]	KEY;	
 	input 	[7:0] 	SW;	
+	input 	start_song;
 	// Declare your inputs and outputs here
 	// Do not change the following outputs
 	output			VGA_CLK;   				//	VGA Clock
@@ -80,7 +81,7 @@ module display
 	reg start_song = 0; // signal to start animation + song audio
 	assign start_song = SW[7]
 
-	reg [10:0] song_idx = 11'b0; // index of current note in song rom
+	reg [5:0] song_idx = 11'b0; // index of current note in song rom
 	wire [3:0] curr_note; // pull current note from song rom
 
 	reg [5:0] dy = 6'd0; // Vertical displacement of blocks: 0->50px
