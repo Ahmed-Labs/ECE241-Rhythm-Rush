@@ -1,7 +1,7 @@
 
 
 
-module song (clk, reset, start, notes_out)
+module song (clk, reset, index, notes_out);
     input clk;
     input reset;
     input [5:0] index;
